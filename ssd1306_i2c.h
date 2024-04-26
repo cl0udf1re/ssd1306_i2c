@@ -159,6 +159,13 @@ void ssd1306_fillRect(int x, int y, int w, int h, int fillcolor);
 
 void ssd1306_setTextSize(int s);
 void ssd1306_drawString(char *str);
+void ssd1306_drawStringAtLine(char* str, int line);
+void ssd1306_drawCenteredString(char *str);
+void ssd1306_drawTextCentered(char* str, int y);
+void ssd1306_drawStringAtPosition(char* str, int x, int y);
+void ssd1306_drawNewsBarString(char *str, int direction, int duration_ms);
 void ssd1306_drawChar(int x, int y, unsigned char c, int color, int size);
+void ssd1306_drawLoadingBarInPercent(int percentage, int increase);
+void ssd1306_setCursor(int x, int y);
 
 #endif				/* _SSD1306_I2C_H_ */

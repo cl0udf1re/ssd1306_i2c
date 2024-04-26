@@ -33,8 +33,17 @@ All text above, and the splash screen below must be included in any redistributi
 
 #include "oled_fonts.h"
 
+#include <math.h>
+
+#include <stdbool.h>
+
+#include <time.h> // for nanosleep
+
+
+#define PI 3.14159265
 #define true 1
 #define false 0
+char displayedPercentage[5] = "";
 
 #define rotation 0
 
@@ -703,6 +712,13 @@ void ssd1306_drawFastVLine(int x, int y, int h, unsigned int color)
 	}
 }
 
+// Inline function to swap values of two integers
+static inline void swap_values(int *a, int *b) {
+    int temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
 void ssd1306_fillRect(int x, int y, int w, int h, int fillcolor)
 {
 
@@ -721,7 +737,7 @@ void ssd1306_fillRect(int x, int y, int w, int h, int fillcolor)
 
 	switch (rotation) {
 	case 1:
-		swap_values(x, y);
+		swap_values(&x, &y);
 		x = WIDTH - x - 1;
 		break;
 	case 2:
@@ -729,7 +745,7 @@ void ssd1306_fillRect(int x, int y, int w, int h, int fillcolor)
 		y = HEIGHT - y - 1;
 		break;
 	case 3:
-		swap_values(x, y);
+		swap_values(&x, &y);
 		y = HEIGHT - y - 1;
 		break;
 	}
@@ -772,7 +788,175 @@ void ssd1306_drawString(char *str)
 		ssd1306_write(str[i]);
 }
 
-// Draw a character
+void ssd1306_drawCenteredString(char *str)
+{
+    int strWidth = strlen(str) * 6 * textsize;
+    int strHeight = 8 * textsize;
+    int x = (WIDTH - strWidth) / 2;
+    int y = (HEIGHT - strHeight) / 2;
+
+    for (int i = 0; i < strlen(str); i++) {
+        ssd1306_drawChar(x, y, str[i], WHITE, textsize);
+        x += textsize * 6;
+    }
+}
+
+void ssd1306_drawStringAtLine(char* str, int line) {
+    int y = line * 8 * textsize;
+
+    int strWidth = strlen(str) * 6 * textsize;
+
+    int x = (WIDTH - strWidth) / 2;
+
+    ssd1306_drawStringAtPosition(str, x, y);
+}
+
+void delayMS(int milliseconds) {
+    struct timespec delay_time;
+    delay_time.tv_sec = milliseconds / 1000;
+    delay_time.tv_nsec = (milliseconds % 1000) * 1000000; // Convert milliseconds to nanoseconds
+
+    nanosleep(&delay_time, NULL);
+}
+
+void ssd1306_drawStringAtPosition(char* str, int x, int y) {
+    for (int i = 0; i < strlen(str); i++) {
+        // Draw each character at the specified x and y coordinates
+        ssd1306_drawChar(x, y, str[i], WHITE, textsize);
+        x += textsize * 6; // Move to the next position for the next character
+    }
+}
+
+void ssd1306_drawNewsBarString(char *str, int direction, int duration_ms) {
+    int strWidth = strlen(str) * 6 * textsize; // Calculate the width of the string
+    int x, y;
+    
+    if (direction == 0) { // Move from left to right
+        x = -strWidth; // Start drawing the text outside the screen
+    } else { // Move from right to left
+        x = WIDTH; // Start drawing the text outside the screen
+    }
+
+    y = (HEIGHT - 8 * textsize) / 2; // Center the text vertically
+
+    clock_t start_time = clock(); // Record the start time
+
+    while (1) { // Loop indefinitely
+        // Clear the screen
+        ssd1306_clearDisplay();
+
+        // Draw the text at the current x-coordinate
+        ssd1306_drawStringAtPosition(str,x, y);
+
+        // Display the changes on the screen
+        ssd1306_display();
+
+        // Increment or decrement the x-coordinate based on the direction
+        if (direction == 0) { // Move from left to right
+            x++;
+            // If the entire string has been drawn, reset x-coordinate to start from the beginning
+            if (x >= WIDTH) {
+                x = -strWidth;
+            }
+        } else { // Move from right to left
+            x--;
+            // If the entire string has been drawn, reset x-coordinate to start from the end
+            if (x <= -strWidth) {
+                x = WIDTH;
+            }
+        }
+
+        // Check if the elapsed time exceeds the specified duration
+        if ((clock() - start_time) * 1000 / CLOCKS_PER_SEC >= duration_ms) {
+            break; // Exit the loop if the duration has elapsed
+        }
+
+        // Introduce some delay to control the speed of the animation
+        delayMS(1); // Adjust the delay value as needed
+    }
+}
+
+// Function to calculate the width of a string
+int calculateStringWidth(char* str) {
+    int width = 0;
+    for (int i = 0; str[i] != '\0'; i++) {
+        if (str[i] == '%') {
+            width += 3; // Assume "%" is 3 pixels wide
+        } else {
+            width += 6; // Assume other characters are 6 pixels wide
+        }
+    }
+    return width;
+}
+
+void ssd1306_drawTextCentered(char* str, int y) {
+    // Calculate the width of the new text
+    int strWidth = calculateStringWidth(str);
+
+    // Calculate the width of the previous text
+    int previousWidth = calculateStringWidth(displayedPercentage);
+
+    // Calculate the maximum width between the old and new percentage strings
+    int maxWidth = (strWidth > previousWidth) ? strWidth : previousWidth;
+
+    // Calculate the starting x-coordinate for centering
+    int x = (WIDTH - maxWidth) / 2;
+
+    // Clear the area where the text will be drawn
+    ssd1306_fillRect(x, y, previousWidth, 8, BLACK); // Clear the entire previous width
+
+    // Draw the text at the calculated position
+    ssd1306_drawStringAtPosition(str, x, y);
+
+    // Store the displayed percentage globally for future comparisons
+    strcpy(displayedPercentage, str);
+}
+
+void ssd1306_drawLoadingBarInPercent(int percentage, int increase) {
+    int x, y, width;
+	if(increase){
+    	// Set the position and dimensions for the volume line
+    	x = 0; // Start from the left edge
+    	y = HEIGHT - 1; // Bottom of the display
+    	width = (WIDTH * percentage) / 100; // Calculate the width of the line based on the percentage
+
+    	// Draw the volume line
+    	for (int i = x; i < width; i++) {
+    	    // Draw a pixel at each position along the line
+    	    ssd1306_drawPixel(i, y, WHITE);
+    	}
+
+    	// Draw the percentage value above the volume line
+    	char percentageStr[5];
+    	sprintf(percentageStr, "%d%%", percentage);
+    	ssd1306_drawTextCentered(percentageStr, y - 10); // Adjust the y-coordinate as needed
+	}else{
+		// Set the position and dimensions for the black cover
+    	x = (WIDTH * percentage) / 100; // Calculate the starting x-coordinate for the black cover
+    	y = HEIGHT - 1; // Bottom of the display
+
+    	// Calculate the width of the black cover
+    	width = WIDTH - x;
+
+    	// Draw the black cover
+    	ssd1306_fillRect(x, y, width, 1, BLACK); // Fill the entire line with black
+
+    	// Draw the percentage value above the black cover
+    	char percentageStr[6]; // Increased size to accommodate the extra character
+
+    	// Use fixed-width format to include a space before the percentage value
+    	sprintf(percentageStr, "%3d%%", percentage);
+
+    	ssd1306_drawTextCentered(percentageStr, y - 10); // Draw the percentage value
+	}
+}
+
+void ssd1306_setCursor(int x, int y)
+{
+	cursor_x = x;
+	cursor_y = y;
+}
+
 void ssd1306_drawChar(int x, int y, unsigned char c, int color, int size)
 {
 
