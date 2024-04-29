@@ -2,8 +2,10 @@
 SSD1306 I2C Library for Raspberry Pi.
 Based on Adafruit SSD1306 Arduino library. Some functions came from Adafruit GFX lib
 
-Modified by Ilia Penev
-Tested on Raspberry Pi 2 with 0.96 Yellow/Blue OLED
+Modified by Ilia Penev and Benjamin Braunfels
+Tested on:
+Raspberry Pi 2 with 0.96 Yellow/Blue OLED
+Raspberry Pi 4 with 0.96 Blue OLED
 *********************************************************************/
 
 /*********************************************************************
@@ -955,6 +957,10 @@ void ssd1306_setCursor(int x, int y)
 {
 	cursor_x = x;
 	cursor_y = y;
+}
+
+ssd1306_clearLine(int line) {
+	ssd1306_fillRect(0, line * 8, WIDTH, 8, BLACK);
 }
 
 void ssd1306_drawChar(int x, int y, unsigned char c, int color, int size)
