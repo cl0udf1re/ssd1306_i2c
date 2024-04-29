@@ -959,7 +959,7 @@ void ssd1306_setCursor(int x, int y)
 	cursor_y = y;
 }
 
-ssd1306_clearLine(int line) {
+void ssd1306_clearLine(int line) {
 	ssd1306_fillRect(0, line * 8, WIDTH, 8, BLACK);
 }
 
